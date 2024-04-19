@@ -1,21 +1,20 @@
+#include "src/chip8.h"
 #include <raylib/raylib.h>
 
-#define WIDTH 0x3f
-#define HEIGHT 0x1f
-
-#define RESOLUTION 15
-
 int main(void) {
+  C8 *c8 = init_c8();
+
   InitWindow(WIDTH * RESOLUTION, HEIGHT * RESOLUTION, "Chip8");
 
   while (!WindowShouldClose()) {
     BeginDrawing();
 
-    ClearBackground(RAYWHITE);
-    DrawText("Hello World!", 10, 10, 20, LIGHTGRAY);
+    draw_c8(c8);
 
     EndDrawing();
   }
+
+  free_c8(c8);
 
   return 0;
 }
