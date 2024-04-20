@@ -1,6 +1,7 @@
 builddir/
 compile_commands.json
 .cache/
+*.ch8
 
 # Prerequisites
 *.d

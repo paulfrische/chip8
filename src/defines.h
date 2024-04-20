@@ -2,6 +2,14 @@
 #define DEFINES
 
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define ASSERT(x, ...)                                                         \
+  if (!(x)) {                                                                  \
+    printf(__VA_ARGS__);                                                       \
+    exit(-1);                                                                  \
+  };
 
 typedef uint16_t u16;
 typedef uint8_t u8;
