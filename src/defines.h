@@ -11,6 +11,13 @@
     exit(-1);                                                                  \
   };
 
+#define LOG(...)                                                               \
+  {                                                                            \
+    printf("[LOG] %s:%i\t", __FILE__, __LINE__);                               \
+    printf(__VA_ARGS__);                                                       \
+    printf("\n");                                                              \
+  }
+
 typedef uint16_t u16;
 typedef uint8_t u8;
 typedef uint32_t u32;
