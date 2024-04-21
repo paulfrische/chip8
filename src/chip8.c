@@ -11,7 +11,7 @@
 
 #define INDEX(x, y) ((y) * WIDTH + (x))
 #define NEXT c->pc += 2
-#define V(N) c->registers[N]
+#define V(N) (c->registers[(N)])
 
 const u8 FONT_DATA[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -47,7 +47,6 @@ typedef struct C8 {
   u16 pc;
   u8 delay_timer; // NOTE: timers tick at 60 hertz down to 0
   u8 sound_timer;
-  u16 keys; // NOTE: bit field cause I am lazy
   u32 instruction_count;
 } C8;
 
@@ -63,7 +62,6 @@ C8 *init_c8() {
   c->pc = PROGRAM_START;
   c->delay_timer = 0;
   c->sound_timer = 0;
-  c->keys = 0;
   c->instruction_count = 0;
 
   memcpy(c->memory + FONT, FONT_DATA, sizeof(FONT_DATA) / sizeof(u8));
@@ -84,7 +82,7 @@ void draw_c8(C8 *c) {
       }
     }
   }
-#ifndef NDEBUG
+#ifdef NDEBUG
   // TODO: raygui
   for (int i = 0; i < 16; i++) {
     char msg[0xFF];
@@ -125,8 +123,6 @@ u16 stack_pop(C8 *c) {
 }
 
 void update_c8(C8 *c, u16 input) {
-  c->keys = input;
-
   // FETCH
   Instruction inst = *(Instruction *)(c->memory + c->pc);
   u8 NN = inst.bytes[1];
@@ -141,24 +137,17 @@ void update_c8(C8 *c, u16 input) {
   u8 Y = (NN & 0xF0) >> 4;                  // third nibble
   u8 N = NN & 0x0F;                         // fourth nibble
 
-  /* if (c->instruction_count > 200) { */
-  /*   LOG("#%i inst=0x%x first=0x%x NN=0x%x optcode=0x%x X=0x%x, Y=0x%x, N=0x%x, " */
-  /*       "NNN=0x%x", */
-  /*       c->instruction_count, inst.inst, inst.bytes[0], NN, optcode, X, Y, N, */
-  /*       NNN); */
-  /* } */
-
   switch (optcode) {
   case 0x0:
     switch (NN) {
-    case 0xE0: // clear screen
+    case 0xE0: // 00E0: clear screen
     {
       memset(c->screen, 0, WIDTH * HEIGHT);
-      LOG("clear screen");
+      /* LOG("clear screen"); */
     } break;
     case 0xEE: // 00EE: return
     {
-      LOG("return");
+      /* LOG("return"); */
       c->pc = stack_pop(c);
     } break;
     default:
@@ -171,47 +160,47 @@ void update_c8(C8 *c, u16 input) {
   case 0x1: // 1nnn: jump
   {
     c->pc = NNN;
-    LOG("jump to %x", NNN);
+    /* LOG("jump to %x", NNN); */
   } break;
   case 0x2: // 2nnn: call
   {
-    LOG("call %x", NNN);
+    /* LOG("call %x", NNN); */
     stack_push(c, c->pc);
     c->pc = NNN;
   } break;
   case 0x3: // 3xnn: skip next opcode if vx == nn
   {
-    LOG("skip next opcode if V%x (%x) == NN (%x)", X, V(X), NN);
+    /* LOG("skip next opcode if V%x (%x) == NN (%x)", X, V(X), NN); */
     if (V(X) == NN) {
       NEXT;
-      LOG("skip");
+      /* LOG("skip"); */
     }
   } break;
   case 0x4: // 4xnn: skip next opcode if vx != nn
   {
-    LOG("skip next opcode if V%x (%x) != NN (%x)", X, V(X), NN);
+    /* LOG("skip next opcode if V%x (%x) != NN (%x)", X, V(X), NN); */
     if (V(X) != NN) {
-      LOG("skip");
+      /* LOG("skip"); */
       NEXT;
     }
   } break;
   case 0x5: // 5xy0: skip next opcode if vx == vy
   {
-    LOG("skip next opcode if V%x (%x) == V%x (%x)", X, V(X), Y, V(Y));
+    /* LOG("skip next opcode if V%x (%x) == V%x (%x)", X, V(X), Y, V(Y)); */
     ASSERT(N == 0, "invalid instruction 0x%x", inst.inst);
     if (V(X) == V(Y)) {
-      LOG("skip");
+      /* LOG("skip"); */
       NEXT;
     }
   } break;
   case 0x6: // 6xnn: set register
   {
-    LOG("set V%x to %x", X, NN);
+    /* LOG("set V%x to %x", X, NN); */
     V(X) = NN;
   } break;
   case 0x7: // 7xnn: add to register
   {
-    LOG("add %x to V%x", NN, V(X));
+    /* LOG("add %x to V%x", NN, V(X)); */
     V(X) += NN;
   } break;
   case 0x8: // register magic
@@ -219,56 +208,61 @@ void update_c8(C8 *c, u16 input) {
     switch (N) {
     case 0x0: // 8xy0: set vx to vy
     {
-      LOG("set V%x (%x) to V%x (%x)", X, V(X), Y, V(Y));
+      /* LOG("set V%x (%x) to V%x (%x)", X, V(X), Y, V(Y)); */
       V(X) = V(Y);
     } break;
     case 0x1: // 8xy1: logical or
     {
-      LOG("or V%x (%x) with V%x (%x)", X, V(X), Y, V(Y));
+      /* LOG("or V%x (%x) with V%x (%x)", X, V(X), Y, V(Y)); */
       V(X) |= V(Y);
     } break;
     case 0x2: // 8xy2: logical and
     {
-      LOG("and V%x (%x) with V%x (%x)", X, V(X), Y, V(Y));
+      /* LOG("and V%x (%x) with V%x (%x)", X, V(X), Y, V(Y)); */
       V(X) &= V(Y);
     } break;
     case 0x3: // 8xy3: logical xor
     {
-      LOG("xor V%x (%x) with V%x (%x)", X, V(X), Y, V(Y));
+      /* LOG("xor V%x (%x) with V%x (%x)", X, V(X), Y, V(Y)); */
       V(X) ^= V(Y);
     } break;
     case 0x4: // 8xy4: add
     {
-      LOG("add V%x (%x) to V%x (%x)", X, V(X), Y, V(Y));
-      V(X) += V(Y);
-      V(0xF) = (((u16)V(X) + (u16)V(Y)) > U8MAX);
+      /* LOG("add V%x (%x) to V%x (%x)", X, V(X), Y, V(Y)); */
+      u16 result = V(X) + V(Y);
+      V(X) = result;
+      V(0xF) = result > U8MAX;
+      /* LOG("VF = %x", V(0xF)); */
     } break;
     case 0x5: // 8xy5: subtract vx = vx - vy
     {
-      LOG("subtract V%x (%x) from V%x (%x) | store in V%x", Y, V(Y), X, V(X),
-          X);
+      u8 flag = V(X) >= V(Y);
       V(X) -= V(Y);
-      V(0xF) = V(X) > V(Y);
-      LOG("Vf = %x", V(0xF));
+      V(0xF) = flag;
     } break;
     case 0x7: // 8xy7: subtract vx = vy - vx
     {
-      LOG("subtract V%x (%x) from V%x (%x) | store in V%x", X, V(X), Y, V(Y),
-          X);
+      LOG("V%x (%x) = V%x (%x) - V%x (%x) = %x", X, V(X), X, V(X), Y, V(Y),
+          V(Y) - V(X));
+
+      u8 flag = V(Y) >= V(X);
       V(X) = V(Y) - V(X);
-      V(0xF) = V(Y) < V(X);
+      V(0xF) = flag;
       LOG("Vf = %x", V(0xF));
+
+      /* LOG("Vf = %x", V(0xF)); */
     } break;
     case 0x6: // 8xy6: bitshift to the right
     {
-      LOG("bitshift V%x (%x) right | store in V%x (%x)", Y, V(Y), X, V(X));
+      /* LOG("bitshift V%x (%x) right | store in V%x (%x)", Y, V(Y), X, V(X));
+       */
       // TODO: impl quirks (original behaviour at the moment)
       V(X) = V(Y) >> 1;
       V(0xF) = V(Y) & 0x1;
     } break;
     case 0xE: // 8xyE: bitshift to the left
     {
-      LOG("bitshift V%x (%x) left | store in V%x (%x)", Y, V(Y), X, V(X));
+      /* LOG("bitshift V%x (%x) left | store in V%x (%x)", Y, V(Y), X, V(X)); */
       V(X) = V(Y) << 1; // TODO: impl quirks
       V(0xF) = (V(Y) & 0x80) >> 7;
     } break;
@@ -278,21 +272,21 @@ void update_c8(C8 *c, u16 input) {
   } break;
   case 0x9: // 9xy0: skip next opcode if vx != vy
   {
-    LOG("skip next opcode if V%x (%x) != V%x (%x)", X, V(X), Y, V(Y));
+    /* LOG("skip next opcode if V%x (%x) != V%x (%x)", X, V(X), Y, V(Y)); */
     ASSERT(N == 0, "invalid instruction 0x%x", inst.inst);
     if (V(X) != V(Y)) {
-      LOG("skip");
+      /* LOG("skip"); */
       NEXT;
     }
   } break;
   case 0xA: // Annn: set address register
   {
-    LOG("set I to %x", NNN);
+    /* LOG("set I to %x", NNN); */
     c->address = NNN;
   } break;
-  case 0xD: // draw
+  case 0xD: // Dxyn: draw
   {
-    LOG("draw");
+    /* LOG("draw"); */
     u16 x = V(X) % WIDTH;
     u16 y = V(Y) % HEIGHT;
     V(0xF) = 0;
@@ -316,14 +310,15 @@ void update_c8(C8 *c, u16 input) {
     switch (NN) {
     case 0x65: // Fx65: load registers v0 - vx from memory at i
     {
-      LOG("load registers V0 to V%x from memory at I (%x)", X, c->address);
+      /* LOG("load registers V0 to V%x from memory at I (%x)", X, c->address);
+       */
       for (int i = 0; i <= X; i++) {
         V(i) = c->memory[c->address + i];
       }
     } break;
     case 0x55: // Fx55: write registers v0 - vx to memory at i
     {
-      LOG("write registers V0 to V%x to memory at I (%x)", X, c->address);
+      /* LOG("write registers V0 to V%x to memory at I (%x)", X, c->address); */
       for (int i = 0; i <= X; i++) {
         c->memory[c->address + i] = V(i);
       }
@@ -331,8 +326,9 @@ void update_c8(C8 *c, u16 input) {
     case 0x33: // Fx33: store binary coded decimal number from vx at I, I+1 &
                // I+2
     {
-      LOG("store binary coded decimal of from V%x (0x%x | %i) at %x", X, V(X),
-          V(X), c->address);
+      /* LOG("store binary coded decimal of from V%x (0x%x | %i) at %x", X,
+       * V(X), */
+      /* V(X), c->address); */
       u8 num = V(X);
       u8 third = num % 10;
       num /= 10;
@@ -345,7 +341,7 @@ void update_c8(C8 *c, u16 input) {
     } break;
     case 0x1e: // Fx1E: add vx to I
     {
-      LOG("add V%x (%x) to I (%x)", X, V(X), c->address);
+      /* LOG("add V%x (%x) to I (%x)", X, V(X), c->address); */
       c->address += V(X);
     } break;
     }
