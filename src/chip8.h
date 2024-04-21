@@ -10,7 +10,7 @@
 #define WIDTH 64
 #define HEIGHT 32
 
-#define RESOLUTION 15
+#define RESOLUTION 20
 
 typedef struct C8 C8;
 C8 *init_c8();
