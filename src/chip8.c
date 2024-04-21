@@ -72,12 +72,12 @@ void update_timers(C8 *c) {
     c->delay_timer--;
   }
 
-  if (c->sound_timer > 0) {
+  if (c->sound_timer > 0) { // TODO: play sound as long as > 0
     c->sound_timer--;
   }
 }
 
-void update_c8(C8 *c, u16 input) {
+void update_c8(C8 *c) {
   // FETCH
   Instruction inst = *(Instruction *)(c->memory + c->pc);
   u8 nn = inst.bytes[1];
@@ -164,8 +164,34 @@ void update_c8(C8 *c, u16 input) {
     c->address = nnn;
     break;
 
+  case 0xB: // Bnnn: realive jump
+    c->pc = nnn + V(0x0);
+    break;
+
+  case 0xC: // Cxnn: random number in VX with mask nn
+    srand(time(NULL));
+    u8 r = (rand() / RAND_MAX) * U8MAX;
+    V(x) = r & nn;
+
   case 0xD: // Dxyn: draw
     draw(c, opcode, x, y, n, nn, nnn);
+    break;
+
+  case 0xE: // skip if key
+    switch (nn) {
+    case 0x9E: // Ex9E: skip if key in VX is down
+      if (IsKeyDown(KEYS[V(x)])) {
+        NEXT;
+      }
+      break;
+
+    case 0xA1: // ExA1: skip if key in VX is *not* down
+      if (!IsKeyDown(KEYS[V(x)])) {
+        NEXT;
+      }
+      break;
+    }
+
     break;
 
   case 0xF: // memory magic

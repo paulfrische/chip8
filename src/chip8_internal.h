@@ -8,6 +8,8 @@
 #define NEXT c->pc += 2
 #define V(N) (c->registers[(N)])
 
+extern const u32 KEYS[0x10];
+
 typedef struct C8 {
   u8 memory[MEMORY];
   u16 stack[STACK];
@@ -24,8 +26,8 @@ typedef struct C8 {
 void stack_push(C8 *c, u16 val);
 u16 stack_pop(C8 *c);
 
-void emulate_alu(C8 *c, u8 opcode, u8 X, u8 Y, u8 N, u8 NN, u16 NNN);
-void emulate_ram(C8 *c, u8 opcode, u8 X, u8 Y, u8 N, u8 NN, u16 NNN);
-void draw(C8 *c, u8 opcode, u8 X, u8 Y, u8 N, u8 NN, u16 NNN);
+void emulate_alu(C8 *c, u8 opcode, u8 x, u8 y, u8 n, u8 nn, u16 nnn);
+void emulate_ram(C8 *c, u8 opcode, u8 x, u8 y, u8 n, u8 nn, u16 nnn);
+void draw(C8 *c, u8 opcode, u8 x, u8 y, u8 n, u8 nn, u16 nnn);
 
 #endif

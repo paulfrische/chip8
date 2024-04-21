@@ -1,3 +1,4 @@
+#include "raylib/raylib.h"
 #include "src/defines.h"
 
 const u8 FONT_DATA[] = {
@@ -19,4 +20,12 @@ const u8 FONT_DATA[] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
+const u64 FONT_INDEX[0x10] = {
+    0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75,
+};
+
 const u64 FONT_SIZE = sizeof(FONT_DATA);
+
+const u32 KEYS[0x10] = {KEY_X,    KEY_ONE, KEY_TWO, KEY_THREE, KEY_Q, KEY_W,
+                        KEY_E,    KEY_A,   KEY_S,   KEY_D,     KEY_Z, KEY_C,
+                        KEY_FOUR, KEY_R,   KEY_F,   KEY_V};
