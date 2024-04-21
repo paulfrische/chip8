@@ -240,34 +240,34 @@ void update_c8(C8 *c, u16 input) {
     {
       LOG("add V%x (%x) to V%x (%x)", X, V(X), Y, V(Y));
       V(X) += V(Y);
-      c->registers[0xF] = (((u16)V(X) + (u16)V(Y)) > U8MAX);
+      V(0xF) = (((u16)V(X) + (u16)V(Y)) > U8MAX);
     } break;
     case 0x5: // 8xy5: subtract vx = vx - vy
     {
       LOG("subtract V%x (%x) from V%x (%x) | store in V%x", Y, V(Y), X, V(X),
           X);
       V(X) -= V(Y);
-      c->registers[0xF] = V(X) > V(Y);
+      V(0xF) = V(X) > V(Y);
     } break;
     case 0x7: // 8xy7: subtract vx = vy - vx
     {
       LOG("subtract V%x (%x) from V%x (%x) | store in V%x", X, V(X), Y, V(Y),
           X);
       V(X) = V(Y) - V(X);
-      c->registers[0xF] = V(Y) < V(X);
+      V(0xF) = V(Y) < V(X);
     } break;
     case 0x6: // 8xy6: bitshift to the right
     {
       LOG("bitshift V%x (%x) right | store in V%x (%x)", Y, V(Y), X, V(X));
       // TODO: impl quirks (original behaviour at the moment)
       V(X) = V(Y) >> 1;
-      c->registers[0xF] = V(Y) & 0x1;
+      V(0xF) = V(Y) & 0x1;
     } break;
     case 0xE: // 8xyE: bitshift to the left
     {
       LOG("bitshift V%x (%x) left | store in V%x (%x)", Y, V(Y), X, V(X));
       V(X) = V(Y) << 1; // TODO: impl quirks
-      c->registers[0xF] = V(Y) & 0x80;
+      V(0xF) = (V(Y) & 0x80) >> 7;
     } break;
     default:
       ASSERT(false, "invalid instruction 0x%x", inst.inst);
@@ -292,16 +292,18 @@ void update_c8(C8 *c, u16 input) {
     LOG("draw");
     u16 x = V(X) % WIDTH;
     u16 y = V(Y) % HEIGHT;
-    c->registers[0xF] = 0;
+    V(0xF) = 0;
     for (int i = 0; i < N; i++) {
       u8 byte = c->memory[c->address + i];
       for (int b = 0; b < 8; b++) {
         u8 v = NTHBIT(byte, b);
-        if (v == 1 && c->screen[INDEX(x + b, y + i)] == 1) {
-          c->screen[INDEX(x + b, y + i)] = 0;
-          c->registers[0xF] = 1;
-        } else {
-          c->screen[INDEX(x + b, y + i)] = v;
+        if (v == 1) {
+          if (c->screen[INDEX(x + b, y + i)] == 1) {
+            c->screen[INDEX(x + b, y + i)] = 0;
+            V(0xF) = 1;
+          } else {
+            c->screen[INDEX(x + b, y + i)] = 1;
+          }
         }
       }
     }
