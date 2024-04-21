@@ -1,5 +1,6 @@
 #include "chip8.h"
 #include "defines.h"
+#define LOGGING
 #include "src/util.h"
 #include <byteswap.h>
 #include <raylib/raygui.h>
@@ -140,12 +141,12 @@ void update_c8(C8 *c, u16 input) {
   u8 Y = (NN & 0xF0) >> 4;                  // third nibble
   u8 N = NN & 0x0F;                         // fourth nibble
 
-  if (c->instruction_count > 200) {
-    LOG("#%i inst=0x%x first=0x%x NN=0x%x optcode=0x%x X=0x%x, Y=0x%x, N=0x%x, "
-        "NNN=0x%x",
-        c->instruction_count, inst.inst, inst.bytes[0], NN, optcode, X, Y, N,
-        NNN);
-  }
+  /* if (c->instruction_count > 200) { */
+  /*   LOG("#%i inst=0x%x first=0x%x NN=0x%x optcode=0x%x X=0x%x, Y=0x%x, N=0x%x, " */
+  /*       "NNN=0x%x", */
+  /*       c->instruction_count, inst.inst, inst.bytes[0], NN, optcode, X, Y, N, */
+  /*       NNN); */
+  /* } */
 
   switch (optcode) {
   case 0x0:
@@ -248,6 +249,7 @@ void update_c8(C8 *c, u16 input) {
           X);
       V(X) -= V(Y);
       V(0xF) = V(X) > V(Y);
+      LOG("Vf = %x", V(0xF));
     } break;
     case 0x7: // 8xy7: subtract vx = vy - vx
     {
@@ -255,6 +257,7 @@ void update_c8(C8 *c, u16 input) {
           X);
       V(X) = V(Y) - V(X);
       V(0xF) = V(Y) < V(X);
+      LOG("Vf = %x", V(0xF));
     } break;
     case 0x6: // 8xy6: bitshift to the right
     {

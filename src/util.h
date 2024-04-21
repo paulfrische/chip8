@@ -11,12 +11,16 @@
     exit(-1);                                                                  \
   };
 
+#ifdef LOGGING
 #define LOG(...)                                                               \
   {                                                                            \
     printf("[LOG] %s:%i\t", __FILE__, __LINE__);                               \
     printf(__VA_ARGS__);                                                       \
     printf("\n");                                                              \
   }
+#else
+#define LOG(...)
+#endif
 
 #define NTHBIT(byte, n) ((byte) & (0x80 >> (n))) >> (7 - (n))
 
