@@ -13,6 +13,10 @@ $ meson compile
 
 Example roms can be found [here](https://github.com/kripod/chip8-roms) (tested with `Breakout` and `Airplane`).
 
+## Warnings
+- ⚠️  I don't know if this thing works on anything else then my CPU because of bit ordering and endianness (at least this shouldn't be an issue).
+- ⚠️  I have basically no experience with emulators so this thing could be/is pretty buggy
+
 ## TODO
 - [ ] sound
 - [ ] make better debugging UI via raygui
