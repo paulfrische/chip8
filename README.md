@@ -17,6 +17,11 @@ Example roms can be found [here](https://github.com/kripod/chip8-roms) (tested w
 - ⚠️  I don't know if this thing works on anything else then my CPU because of bit ordering and endianness (at least this shouldn't be an issue).
 - ⚠️  I have basically no experience with emulators so this thing could be/is pretty buggy
 
+## Resources to build your own
+- https://tobiasvl.github.io/blog/write-a-chip-8-emulator/
+- https://chip8.gulrak.net/
+- https://github.com/Timendus/chip8-test-suite
+
 ## TODO
 - [ ] sound
 - [ ] make better debugging UI via raygui
