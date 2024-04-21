@@ -13,11 +13,8 @@ int main(int argc, char **argv) {
   InitWindow(WIDTH * RESOLUTION, HEIGHT * RESOLUTION, "Chip8");
   SetTargetFPS(60);
 
-  u32 tmp = 0;
-
   while (!WindowShouldClose()) {
     BeginDrawing();
-    tmp++;
 
     u16 input = 0;
     input = input | ((char)IsKeyDown(KEY_X)) << 0;
