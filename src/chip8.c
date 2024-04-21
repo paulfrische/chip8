@@ -1,7 +1,6 @@
 #include "chip8.h"
 #include "chip8_internal.h"
 #include "defines.h"
-#define LOGGING
 #include "src/util.h"
 
 #include <raylib/raygui.h>
@@ -78,6 +77,8 @@ void update_timers(C8 *c) {
 }
 
 void update_c8(C8 *c) {
+  if (c->pc % 2 != 0)
+    ERROR("program counter is broken");
   // FETCH
   Instruction inst = *(Instruction *)(c->memory + c->pc);
   u8 nn = inst.bytes[1];
@@ -98,10 +99,12 @@ void update_c8(C8 *c) {
     switch (nn) {
 
     case 0xE0: // 00E0: clear screen
+      DEBUG("clear screen");
       memset(c->screen, 0, WIDTH * HEIGHT);
       break;
 
     case 0xEE: // 00EE: return
+      DEBUG("return")
       c->pc = stack_pop(c);
       break;
 
@@ -114,38 +117,48 @@ void update_c8(C8 *c) {
     break;
 
   case 0x1: // 1nnn: jump
+    DEBUG("jump to %x", nnn);
     c->pc = nnn;
     break;
 
   case 0x2: // 2nnn: call
+    DEBUG("call %x", nnn);
     stack_push(c, c->pc);
     c->pc = nnn;
     break;
 
   case 0x3: // 3xnn: skip next opcode if vx == nn
+    DEBUG("skip if V%x (%x) == %x", x, V(x), nn);
     if (V(x) == nn) {
+      DEBUG("skip")
       NEXT;
     }
     break;
 
   case 0x4: // 4xnn: skip next opcode if vx != nn
+    DEBUG("skip if V%x (%x) != %x", x, V(x), nn);
     if (V(x) != nn) {
+      DEBUG("skip")
       NEXT;
     }
     break;
 
   case 0x5: // 5xy0: skip next opcode if vx == vy
+    DEBUG("skip if V%x (%x) == V%x (%x)", x, V(x), y, V(y));
     ASSERT(n == 0, "invalid instruction 0x%x", inst.inst);
     if (V(x) == V(y)) {
+      DEBUG("skip");
       NEXT;
     }
     break;
 
-  case 0x6: // 6xnn: set register
+  case 0x6: // 6xnn: set vx to nn
+    DEBUG("set V%x (%x) to %x", x, V(x), nn);
     V(x) = nn;
     break;
 
   case 0x7: // 7xnn: add to register
+    DEBUG("add %x V%x (%x)", nn, x, V(x));
     V(x) += nn;
     break;
 
@@ -154,38 +167,47 @@ void update_c8(C8 *c) {
     break;
 
   case 0x9: // 9xy0: skip next opcode if vx != vy
+    DEBUG("skip if V%x (%x) != V%x (%x)", x, V(x), y, V(y));
     ASSERT(n == 0, "invalid instruction 0x%x", inst.inst);
     if (V(x) != V(y)) {
+      DEBUG("skip");
       NEXT;
     }
     break;
 
   case 0xA: // Annn: set address register
+    DEBUG("set I to %x", nnn);
     c->address = nnn;
     break;
 
-  case 0xB: // Bnnn: realive jump
+  case 0xB: // Bnnn: relative jump
+    DEBUG("relative jump to NNN (%x) + V%x (%x) = %x", nnn, x, V(x),
+          nnn + V(x));
     c->pc = nnn + V(0x0);
     break;
 
   case 0xC: // Cxnn: random number in VX with mask nn
     srand(time(NULL));
     u8 r = (rand() / RAND_MAX) * U8MAX;
+    DEBUG("set V%x (%x) to random number %x", x, V(x), r & nn);
     V(x) = r & nn;
 
   case 0xD: // Dxyn: draw
+    DEBUG("draw");
     draw(c, opcode, x, y, n, nn, nnn);
     break;
 
   case 0xE: // skip if key
     switch (nn) {
     case 0x9E: // Ex9E: skip if key in VX is down
+      DEBUG("check if key %x is down", V(x));
       if (IsKeyDown(KEYS[V(x)])) {
         NEXT;
       }
       break;
 
     case 0xA1: // ExA1: skip if key in VX is *not* down
+      DEBUG("check if key %x is up", V(x));
       if (!IsKeyDown(KEYS[V(x)])) {
         NEXT;
       }

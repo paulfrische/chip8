@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     BeginDrawing();
 
     update_timers(c8);
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 10; i++) {
       /* if (IsKeyPressed(KEY_SPACE) || IsKeyPressedRepeat(KEY_SPACE)) */
       update_c8(c8);
     }
