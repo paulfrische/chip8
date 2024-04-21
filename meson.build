@@ -8,4 +8,4 @@ incdir = include_directories('include')
 raylib = c.find_library('raylib', dirs : libdir)
 math = c.find_library('m', required : false)
 
-executable('chip8', 'src/main.c', 'src/chip8.c', 'src/raygui_impl.c', include_directories : incdir, dependencies : [raylib, math])
+executable('chip8', 'src/main.c', 'src/chip8.c', 'src/util.c', 'src/raygui_impl.c', include_directories : incdir, dependencies : [raylib, math])

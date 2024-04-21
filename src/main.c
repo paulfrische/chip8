@@ -1,5 +1,6 @@
 #include "src/chip8.h"
 #include "src/defines.h"
+#include "src/util.h"
 #include <raylib/raylib.h>
 
 int main(int argc, char **argv) {
@@ -12,8 +13,11 @@ int main(int argc, char **argv) {
   InitWindow(WIDTH * RESOLUTION, HEIGHT * RESOLUTION, "Chip8");
   SetTargetFPS(60);
 
+  u32 tmp = 0;
+
   while (!WindowShouldClose()) {
     BeginDrawing();
+    tmp++;
 
     u16 input = 0;
     input = input | ((char)IsKeyDown(KEY_X)) << 0;
@@ -34,9 +38,11 @@ int main(int argc, char **argv) {
     input = input | ((char)IsKeyDown(KEY_V)) << 15;
 
     update_timers(c8);
-    /* for (int i = 0; i < 12; i++) { */
-    update_c8(c8, input);
-    /* } */
+    for (int i = 0; i < 12; i++) {
+      /* if (IsKeyPressed(KEY_SPACE)) { */
+      update_c8(c8, input);
+      /* } */
+    }
 
     draw_c8(c8);
 

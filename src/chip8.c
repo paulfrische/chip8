@@ -1,7 +1,7 @@
 #include "chip8.h"
 #include "defines.h"
+#include "src/util.h"
 #include <byteswap.h>
-#include <endian.h>
 #include <raylib/raygui.h>
 #include <raylib/raylib.h>
 #include <stdio.h>
@@ -10,17 +10,23 @@
 
 #define INDEX(x, y) ((y) * WIDTH + (x))
 
+typedef union Instruction {
+  u16 inst;
+  u8 bytes[2];
+} Instruction;
+
 typedef struct C8 {
   u8 memory[MEMORY];
   u16 stack[STACK];
   u16 stack_size;
   u8 registers[16];
-  u8 screen[WIDTH * HEIGHT]; // NOTE: memory waste
-  u16 address; // NOTE: address register (`I`) is actually 12 bits long
+  u8 screen[WIDTH * HEIGHT];
+  u16 address;
   u16 pc;
   u8 delay_timer; // NOTE: timers tick at 60 hertz down to 0
   u8 sound_timer;
   u16 keys; // NOTE: bit field cause I am lazy
+  u32 instruction_count;
 } C8;
 
 C8 *init_c8() {
@@ -36,6 +42,7 @@ C8 *init_c8() {
   c->delay_timer = 0;
   c->sound_timer = 0;
   c->keys = 0;
+  c->instruction_count = 0;
 
   const u8 font[] = {
       0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -75,7 +82,7 @@ void draw_c8(C8 *c) {
       }
     }
   }
-#ifndef NDEBUG
+#ifdef NDEBUG
   // TODO: raygui
   for (int i = 0; i < 16; i++) {
     char msg[0xFF];
@@ -86,6 +93,10 @@ void draw_c8(C8 *c) {
   char msg[0xFF];
   sprintf(msg, "I: 0x%x", c->address);
   DrawText(msg, 10, HEIGHT * RESOLUTION - 30, 12, WHITE);
+  sprintf(msg, "instructions: %i", c->instruction_count);
+  DrawText(msg, 10, HEIGHT * RESOLUTION - 40, 12, WHITE);
+  sprintf(msg, "PC: %i", c->pc);
+  DrawText(msg, 10, HEIGHT * RESOLUTION - 60, 12, WHITE);
 #endif
 }
 
@@ -113,71 +124,156 @@ u16 stack_pop(C8 *c) {
   return c->stack[c->stack_size];
 }
 
-void update_c8(C8 *c, u16 input) {
+void update_c8(C8 *c, u16 input) { // BUG: big clusterfuck everywhere
   c->keys = input;
 
   // FETCH
-  u8 first = *(c->memory + c->pc++);
-  u8 NN = *(c->memory + c->pc++);
-
-  /* inst = htobe16(inst); */
+  Instruction inst = *(Instruction *)(c->memory + c->pc);
+  u8 NN = inst.bytes[1];
+  u16 NNN = be16(inst.inst) & 0x0FFF; // last three nibbles
   c->pc += 2;
+  c->instruction_count += 1;
 
   // DECODE
   // evil bit fuckery
-  u8 optcode = (first & 0xF0) >> 4;              // first nibble
-  u8 X = first & 0x0F;                           // second nibble
-  u8 Y = (NN & 0xF0) >> 4;                       // third nibble
-  u8 N = NN & 0x0F;                              // fourth nibble
-  u16 NNN = *(u16 *)(u8[2]){NN, first} & 0x0FFF; // last three nibbles
+  u8 optcode = (inst.bytes[0] & 0xF0) >> 4; // first nibble
+  u8 X = inst.bytes[0] & 0x0F;              // second nibble
+  u8 Y = (NN & 0xF0) >> 4;                  // third nibble
+  u8 N = NN & 0x0F;                         // fourth nibble
 
-  LOG("first=0x%x NN=0x%x optcode=0x%x X=0x%x, Y=0x%x, N=0x%x, NNN=0x%x", first,
-      NN, optcode, X, Y, N, NNN);
+  LOG("inst=0x%x first=0x%x NN=0x%x optcode=0x%x X=0x%x, Y=0x%x, N=0x%x, "
+      "NNN=0x%x",
+      inst.inst, inst.bytes[0], NN, optcode, X, Y, N, NNN);
 
   switch (optcode) {
   case 0x0:
     switch (NN) {
     case 0xE0: // clear screen
+    {
+      LOG("clear screen");
       memset(c->screen, 0, WIDTH * HEIGHT);
       LOG("clearing screen");
       break;
+    }
     case 0xEE: // return
+    {
+      LOG("return");
       c->pc = stack_pop(c);
       break;
+    }
     default:
-      ASSERT(false, "invalid instruction");
+      ASSERT(
+          false,
+          "invalid instruction 0x%x (ran %i instructions, pc=%i, address=%i)",
+          inst.inst, c->instruction_count, c->pc, c->address);
     }
     break;
   case 0x1: // jump
-    LOG("jumping");
+  {
+    LOG("jumping to 0x%x", NNN);
     c->pc = NNN;
-    break;
+  } break;
   case 0x2: // call
+  {
+    LOG("call");
     stack_push(c, c->pc);
     c->pc = NNN;
-    break;
+  } break;
+  case 0x3: // 3xnn: skip next opcode if vx == nn
+  {
+    if (c->registers[X] == NN) {
+      c->pc += 2;
+    }
+  } break;
+  case 0x4: // 4xnn: skip next opcode if vx != nn
+  {
+    if (c->registers[X] != NN) {
+      c->pc += 2;
+    }
+  } break;
+  case 0x5: // skip next opcode if vx == vy
+  {
+    ASSERT(N == 0, "invalid instruction 0x%x", inst.inst);
+    if (c->registers[X] == c->registers[Y]) {
+      c->pc += 2;
+    }
+  } break;
   case 0x6: // set register
-    LOG("set V%x to %x", X, NN);
+  {
+    LOG("set V%i to 0x%x", X, NN);
     c->registers[X] = NN;
-    break;
+  } break;
   case 0x7: // add to register
-    LOG("add to %x V%x ", NN, X);
+  {
+    LOG("add %x to register V%x", NN, X);
     c->registers[X] += NN;
-    break;
+  } break;
+  case 0x8: //
+  {
+    switch (N) {
+    case 0x0: // set vx to vy
+    {
+      c->registers[X] = c->registers[Y];
+    } break;
+    case 0x1: // logical or
+    {
+      c->registers[X] |= c->registers[Y];
+    } break;
+    case 0x2: // logical and
+    {
+      c->registers[X] &= c->registers[Y];
+    } break;
+    case 0x3: // logical xor
+    {
+      c->registers[X] ^= c->registers[Y];
+    } break;
+    case 0x4: // add
+    {
+      c->registers[X] += c->registers[Y];
+    } break;
+    case 0x5: // subtract
+    {
+      c->registers[X] -= c->registers[Y];
+    } break;
+    case 0x6: // bitshift to the right
+    {
+      // TODO: impl quirks (original behaviour at the moment)
+      c->registers[X] = c->registers[Y] >> 1;
+      c->registers[15] = c->registers[Y] & 0x1;
+    } break;
+    case 0xE: // bitshift to the left
+    {
+      c->registers[X] = c->registers[Y] << 1; // TODO: impl quirks
+      c->registers[15] = c->registers[Y] & 0x80;
+    } break;
+    case 0x7: // set vx to vy
+    {
+      c->registers[X] = c->registers[Y] - c->registers[X];
+    } break;
+    }
+  } break;
+  case 0x9: // skip next opcode if vx != vy
+  {
+    ASSERT(N == 0, "invalid instruction 0x%x", inst.inst);
+    if (c->registers[X] != c->registers[Y]) {
+      c->pc += 2;
+    }
+  } break;
   case 0xA: // set address register
-    LOG("set I to %x", NNN);
+    LOG("set A to %x", NNN);
     c->address = NNN;
     break;
   case 0xD: // draw
-    LOG("draw %i bytes", N);
+  {
+    LOG("draw");
     u16 x = c->registers[X] % WIDTH;
     u16 y = c->registers[Y] % HEIGHT;
     c->registers[15] = 0;
     for (int i = 0; i < N; i++) {
       u8 byte = c->memory[c->address + i];
-      LOG("byte to draw: %b", byte);
+      /* LOG("byte to draw: %b", byte); */
       for (int b = 0; b < 8; b++) {
-        u8 v = (byte & (0x80 >> b)) >> (7 - b);
+        u8 v = NTHBIT(byte, b);
         if (v == 1 && c->screen[INDEX(x + b, y + i)] == 1) {
           c->screen[INDEX(x + b, y + i)] = 0;
           c->registers[15] = 1;
@@ -186,7 +282,41 @@ void update_c8(C8 *c, u16 input) {
         }
       }
     }
-    break;
+  } break;
+  case 0xF: // memory magic
+  {
+    switch (NN) {
+    case 0x65: // load registers v0 - vx from memory at i
+    {
+      for (int i = 0; i <= X; i++) {
+        c->registers[i] = *(c->memory + c->address + i);
+      }
+    } break;
+    case 0x55: // load registers v0 - vx from memory at i
+    {
+      for (int i = 0; i <= X; i++) {
+        *(c->memory + c->address + i) = c->registers[i];
+      }
+    } break;
+    case 0x33: // store decimal coded number from vx at I, I+1 & I+2
+    {
+      u8 num = c->registers[X];
+      u8 third = num % 10;
+      num /= 10;
+      u8 second = num % 10;
+      num /= 10;
+      u8 first = num % 10;
+      num /= 10;
+      c->memory[c->address + 0] = first;
+      c->memory[c->address + 1] = second;
+      c->memory[c->address + 2] = third;
+    } break;
+    case 0x1e: // add vx to I
+    {
+      c->address += c->registers[X];
+    } break;
+    }
+  } break;
   default:
     ASSERT(false, "unknown optcode %i", optcode);
   }
