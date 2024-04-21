@@ -9,6 +9,27 @@
 #include <string.h>
 
 #define INDEX(x, y) ((y) * WIDTH + (x))
+#define NEXT c->pc += 2
+#define V(N) c->registers[N]
+
+const u8 FONT_DATA[] = {
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
 
 typedef union Instruction {
   u16 inst;
@@ -44,27 +65,7 @@ C8 *init_c8() {
   c->keys = 0;
   c->instruction_count = 0;
 
-  const u8 font[] = {
-      0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-      0x20, 0x60, 0x20, 0x20, 0x70, // 1
-      0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-      0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-      0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-      0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-      0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-      0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-      0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-      0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-      0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-      0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-      0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-      0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-      0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-      0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-  };
-  memcpy(c->memory + FONT, font, sizeof(font) / sizeof(u8));
-
-  LOG("finished initing ch8");
+  memcpy(c->memory + FONT, FONT_DATA, sizeof(FONT_DATA) / sizeof(u8));
 
   return c;
 }
@@ -82,21 +83,21 @@ void draw_c8(C8 *c) {
       }
     }
   }
-#ifdef NDEBUG
+#ifndef NDEBUG
   // TODO: raygui
   for (int i = 0; i < 16; i++) {
     char msg[0xFF];
-    sprintf(msg, "V%x: 0x%x", i, c->registers[i]);
-    DrawText(msg, 10, 10 + 14 * i, 12, WHITE);
+    sprintf(msg, "V%x: 0x%x", i, V(i));
+    DrawText(msg, 10, 10 + 14 * i, 12, RED);
   }
 
   char msg[0xFF];
   sprintf(msg, "I: 0x%x", c->address);
-  DrawText(msg, 10, HEIGHT * RESOLUTION - 30, 12, WHITE);
+  DrawText(msg, 10, HEIGHT * RESOLUTION - 30, 12, RED);
   sprintf(msg, "instructions: %i", c->instruction_count);
-  DrawText(msg, 10, HEIGHT * RESOLUTION - 40, 12, WHITE);
+  DrawText(msg, 10, HEIGHT * RESOLUTION - 40, 12, RED);
   sprintf(msg, "PC: %i", c->pc);
-  DrawText(msg, 10, HEIGHT * RESOLUTION - 60, 12, WHITE);
+  DrawText(msg, 10, HEIGHT * RESOLUTION - 60, 12, RED);
 #endif
 }
 
@@ -111,27 +112,25 @@ void update_timers(C8 *c) {
 }
 
 void stack_push(C8 *c, u16 val) {
-  LOG("push %i onto stack", val);
   ASSERT(c->stack_size < STACK, "stack overflow")
   c->stack[c->stack_size] = val;
   c->stack_size++;
 }
 
 u16 stack_pop(C8 *c) {
-  LOG("pop stack");
   ASSERT(c->stack_size > 0, "stack underflow");
   c->stack_size--;
   return c->stack[c->stack_size];
 }
 
-void update_c8(C8 *c, u16 input) { // BUG: big clusterfuck everywhere
+void update_c8(C8 *c, u16 input) {
   c->keys = input;
 
   // FETCH
   Instruction inst = *(Instruction *)(c->memory + c->pc);
   u8 NN = inst.bytes[1];
   u16 NNN = be16(inst.inst) & 0x0FFF; // last three nibbles
-  c->pc += 2;
+  NEXT;
   c->instruction_count += 1;
 
   // DECODE
@@ -141,26 +140,26 @@ void update_c8(C8 *c, u16 input) { // BUG: big clusterfuck everywhere
   u8 Y = (NN & 0xF0) >> 4;                  // third nibble
   u8 N = NN & 0x0F;                         // fourth nibble
 
-  LOG("inst=0x%x first=0x%x NN=0x%x optcode=0x%x X=0x%x, Y=0x%x, N=0x%x, "
-      "NNN=0x%x",
-      inst.inst, inst.bytes[0], NN, optcode, X, Y, N, NNN);
+  if (c->instruction_count > 200) {
+    LOG("#%i inst=0x%x first=0x%x NN=0x%x optcode=0x%x X=0x%x, Y=0x%x, N=0x%x, "
+        "NNN=0x%x",
+        c->instruction_count, inst.inst, inst.bytes[0], NN, optcode, X, Y, N,
+        NNN);
+  }
 
   switch (optcode) {
   case 0x0:
     switch (NN) {
     case 0xE0: // clear screen
     {
-      LOG("clear screen");
       memset(c->screen, 0, WIDTH * HEIGHT);
-      LOG("clearing screen");
-      break;
-    }
-    case 0xEE: // return
+      LOG("clear screen");
+    } break;
+    case 0xEE: // 00EE: return
     {
       LOG("return");
       c->pc = stack_pop(c);
-      break;
-    }
+    } break;
     default:
       ASSERT(
           false,
@@ -168,115 +167,139 @@ void update_c8(C8 *c, u16 input) { // BUG: big clusterfuck everywhere
           inst.inst, c->instruction_count, c->pc, c->address);
     }
     break;
-  case 0x1: // jump
+  case 0x1: // 1nnn: jump
   {
-    LOG("jumping to 0x%x", NNN);
     c->pc = NNN;
+    LOG("jump to %x", NNN);
   } break;
-  case 0x2: // call
+  case 0x2: // 2nnn: call
   {
-    LOG("call");
+    LOG("call %x", NNN);
     stack_push(c, c->pc);
     c->pc = NNN;
   } break;
   case 0x3: // 3xnn: skip next opcode if vx == nn
   {
-    if (c->registers[X] == NN) {
-      c->pc += 2;
+    LOG("skip next opcode if V%x (%x) == NN (%x)", X, V(X), NN);
+    if (V(X) == NN) {
+      NEXT;
+      LOG("skip");
     }
   } break;
   case 0x4: // 4xnn: skip next opcode if vx != nn
   {
-    if (c->registers[X] != NN) {
-      c->pc += 2;
+    LOG("skip next opcode if V%x (%x) != NN (%x)", X, V(X), NN);
+    if (V(X) != NN) {
+      LOG("skip");
+      NEXT;
     }
   } break;
-  case 0x5: // skip next opcode if vx == vy
+  case 0x5: // 5xy0: skip next opcode if vx == vy
   {
+    LOG("skip next opcode if V%x (%x) == V%x (%x)", X, V(X), Y, V(Y));
     ASSERT(N == 0, "invalid instruction 0x%x", inst.inst);
-    if (c->registers[X] == c->registers[Y]) {
-      c->pc += 2;
+    if (V(X) == V(Y)) {
+      LOG("skip");
+      NEXT;
     }
   } break;
-  case 0x6: // set register
+  case 0x6: // 6xnn: set register
   {
-    LOG("set V%i to 0x%x", X, NN);
-    c->registers[X] = NN;
+    LOG("set V%x to %x", X, NN);
+    V(X) = NN;
   } break;
-  case 0x7: // add to register
+  case 0x7: // 7xnn: add to register
   {
-    LOG("add %x to register V%x", NN, X);
-    c->registers[X] += NN;
+    LOG("add %x to V%x", NN, V(X));
+    V(X) += NN;
   } break;
-  case 0x8: //
+  case 0x8: // register magic
   {
     switch (N) {
-    case 0x0: // set vx to vy
+    case 0x0: // 8xy0: set vx to vy
     {
-      c->registers[X] = c->registers[Y];
+      LOG("set V%x (%x) to V%x (%x)", X, V(X), Y, V(Y));
+      V(X) = V(Y);
     } break;
-    case 0x1: // logical or
+    case 0x1: // 8xy1: logical or
     {
-      c->registers[X] |= c->registers[Y];
+      LOG("or V%x (%x) with V%x (%x)", X, V(X), Y, V(Y));
+      V(X) |= V(Y);
     } break;
-    case 0x2: // logical and
+    case 0x2: // 8xy2: logical and
     {
-      c->registers[X] &= c->registers[Y];
+      LOG("and V%x (%x) with V%x (%x)", X, V(X), Y, V(Y));
+      V(X) &= V(Y);
     } break;
-    case 0x3: // logical xor
+    case 0x3: // 8xy3: logical xor
     {
-      c->registers[X] ^= c->registers[Y];
+      LOG("xor V%x (%x) with V%x (%x)", X, V(X), Y, V(Y));
+      V(X) ^= V(Y);
     } break;
-    case 0x4: // add
+    case 0x4: // 8xy4: add
     {
-      c->registers[X] += c->registers[Y];
+      LOG("add V%x (%x) to V%x (%x)", X, V(X), Y, V(Y));
+      V(X) += V(Y);
+      c->registers[0xF] = (((u16)V(X) + (u16)V(Y)) > U8MAX);
     } break;
-    case 0x5: // subtract
+    case 0x5: // 8xy5: subtract vx = vx - vy
     {
-      c->registers[X] -= c->registers[Y];
+      LOG("subtract V%x (%x) from V%x (%x) | store in V%x", Y, V(Y), X, V(X),
+          X);
+      V(X) -= V(Y);
+      c->registers[0xF] = V(X) > V(Y);
     } break;
-    case 0x6: // bitshift to the right
+    case 0x7: // 8xy7: subtract vx = vy - vx
     {
+      LOG("subtract V%x (%x) from V%x (%x) | store in V%x", X, V(X), Y, V(Y),
+          X);
+      V(X) = V(Y) - V(X);
+      c->registers[0xF] = V(Y) < V(X);
+    } break;
+    case 0x6: // 8xy6: bitshift to the right
+    {
+      LOG("bitshift V%x (%x) right | store in V%x (%x)", Y, V(Y), X, V(X));
       // TODO: impl quirks (original behaviour at the moment)
-      c->registers[X] = c->registers[Y] >> 1;
-      c->registers[15] = c->registers[Y] & 0x1;
+      V(X) = V(Y) >> 1;
+      c->registers[0xF] = V(Y) & 0x1;
     } break;
-    case 0xE: // bitshift to the left
+    case 0xE: // 8xyE: bitshift to the left
     {
-      c->registers[X] = c->registers[Y] << 1; // TODO: impl quirks
-      c->registers[15] = c->registers[Y] & 0x80;
+      LOG("bitshift V%x (%x) left | store in V%x (%x)", Y, V(Y), X, V(X));
+      V(X) = V(Y) << 1; // TODO: impl quirks
+      c->registers[0xF] = V(Y) & 0x80;
     } break;
-    case 0x7: // set vx to vy
-    {
-      c->registers[X] = c->registers[Y] - c->registers[X];
-    } break;
+    default:
+      ASSERT(false, "invalid instruction 0x%x", inst.inst);
     }
   } break;
-  case 0x9: // skip next opcode if vx != vy
+  case 0x9: // 9xy0: skip next opcode if vx != vy
   {
+    LOG("skip next opcode if V%x (%x) != V%x (%x)", X, V(X), Y, V(Y));
     ASSERT(N == 0, "invalid instruction 0x%x", inst.inst);
-    if (c->registers[X] != c->registers[Y]) {
-      c->pc += 2;
+    if (V(X) != V(Y)) {
+      LOG("skip");
+      NEXT;
     }
   } break;
-  case 0xA: // set address register
-    LOG("set A to %x", NNN);
+  case 0xA: // Annn: set address register
+  {
+    LOG("set I to %x", NNN);
     c->address = NNN;
-    break;
+  } break;
   case 0xD: // draw
   {
     LOG("draw");
-    u16 x = c->registers[X] % WIDTH;
-    u16 y = c->registers[Y] % HEIGHT;
-    c->registers[15] = 0;
+    u16 x = V(X) % WIDTH;
+    u16 y = V(Y) % HEIGHT;
+    c->registers[0xF] = 0;
     for (int i = 0; i < N; i++) {
       u8 byte = c->memory[c->address + i];
-      /* LOG("byte to draw: %b", byte); */
       for (int b = 0; b < 8; b++) {
         u8 v = NTHBIT(byte, b);
         if (v == 1 && c->screen[INDEX(x + b, y + i)] == 1) {
           c->screen[INDEX(x + b, y + i)] = 0;
-          c->registers[15] = 1;
+          c->registers[0xF] = 1;
         } else {
           c->screen[INDEX(x + b, y + i)] = v;
         }
@@ -286,34 +309,39 @@ void update_c8(C8 *c, u16 input) { // BUG: big clusterfuck everywhere
   case 0xF: // memory magic
   {
     switch (NN) {
-    case 0x65: // load registers v0 - vx from memory at i
+    case 0x65: // Fx65: load registers v0 - vx from memory at i
     {
+      LOG("load registers V0 to V%x from memory at I (%x)", X, c->address);
       for (int i = 0; i <= X; i++) {
-        c->registers[i] = *(c->memory + c->address + i);
+        V(i) = c->memory[c->address + i];
       }
     } break;
-    case 0x55: // load registers v0 - vx from memory at i
+    case 0x55: // Fx55: write registers v0 - vx to memory at i
     {
+      LOG("write registers V0 to V%x to memory at I (%x)", X, c->address);
       for (int i = 0; i <= X; i++) {
-        *(c->memory + c->address + i) = c->registers[i];
+        c->memory[c->address + i] = V(i);
       }
     } break;
-    case 0x33: // store decimal coded number from vx at I, I+1 & I+2
+    case 0x33: // Fx33: store binary coded decimal number from vx at I, I+1 &
+               // I+2
     {
-      u8 num = c->registers[X];
+      LOG("store binary coded decimal of from V%x (0x%x | %i) at %x", X, V(X),
+          V(X), c->address);
+      u8 num = V(X);
       u8 third = num % 10;
       num /= 10;
       u8 second = num % 10;
       num /= 10;
       u8 first = num % 10;
-      num /= 10;
       c->memory[c->address + 0] = first;
       c->memory[c->address + 1] = second;
       c->memory[c->address + 2] = third;
     } break;
-    case 0x1e: // add vx to I
+    case 0x1e: // Fx1E: add vx to I
     {
-      c->address += c->registers[X];
+      LOG("add V%x (%x) to I (%x)", X, V(X), c->address);
+      c->address += V(X);
     } break;
     }
   } break;

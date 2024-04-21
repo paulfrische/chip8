@@ -13,4 +13,6 @@ typedef int8_t s8;
 typedef int32_t s32;
 typedef int64_t s64;
 
+#define U8MAX UINT8_MAX
+
 #endif

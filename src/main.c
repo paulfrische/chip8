@@ -38,11 +38,10 @@ int main(int argc, char **argv) {
     input = input | ((char)IsKeyDown(KEY_V)) << 15;
 
     update_timers(c8);
-    for (int i = 0; i < 12; i++) {
-      /* if (IsKeyPressed(KEY_SPACE)) { */
-      update_c8(c8, input);
-      /* } */
-    }
+    /* for (int i = 0; i < 12; i++) { */
+    /* if (IsKeyPressed(KEY_SPACE) || IsKeyPressedRepeat(KEY_SPACE)) */
+    update_c8(c8, input);
+    /* } */
 
     draw_c8(c8);
 
