@@ -7,8 +7,8 @@
 #define PROGRAM_START 0x200
 #define FONT 0x50
 
-#define WIDTH 0x3f
-#define HEIGHT 0x1f
+#define WIDTH 64
+#define HEIGHT 32
 
 #define RESOLUTION 15
 
