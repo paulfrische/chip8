@@ -13,4 +13,5 @@ Example roms can be found [here](https://github.com/kripod/chip8-roms) (tested w
 
 ## TODO
 - [ ] sound
+- [ ] make better debugging UI via raygui
 - [ ] FIX: sometimes the emulator hangs with the breakout example (is it part of the game?)
