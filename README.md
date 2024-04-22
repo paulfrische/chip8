@@ -1,5 +1,5 @@
 # chip8
-![image](https://github.com/paulfrische/chip8/assets/61984114/e5b727ab-5e6b-4063-a1c4-507eb1cdea61)
+![image](https://github.com/paulfrische/chip8/assets/61984114/0efcc3a0-6322-4a28-bae4-ae835fc9e788)
 
 ## Build & Use
 1. install meson
