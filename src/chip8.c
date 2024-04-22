@@ -47,8 +47,9 @@ void draw_c8(C8 *c) {
       }
     }
   }
+}
 
-#ifndef NDEBUG
+void draw_debug_c8(C8 *c) {
   // TODO: raygui
   for (int i = 0; i < 16; i++) {
     char msg[0xFF];
@@ -63,7 +64,8 @@ void draw_c8(C8 *c) {
   DrawText(msg, 10, HEIGHT * RESOLUTION - 40, 12, RED);
   sprintf(msg, "PC: %i", c->pc);
   DrawText(msg, 10, HEIGHT * RESOLUTION - 60, 12, RED);
-#endif
+  sprintf(msg, "FRAMETIME: %f (ms)", GetFrameTime() * 1000.0);
+  DrawText(msg, 10, HEIGHT * RESOLUTION - 80, 12, RED);
 }
 
 void update_timers(C8 *c) {

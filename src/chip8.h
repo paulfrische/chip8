@@ -18,6 +18,7 @@ void free_c8(C8 *c);
 void update_c8(C8 *c);
 void update_timers(C8 *c);
 void draw_c8(C8 *c);
+void draw_debug_c8(C8 *c);
 
 void load_rom(C8 *c, const char *fn);
 

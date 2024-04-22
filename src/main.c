@@ -13,21 +13,38 @@ int main(int argc, char **argv) {
   InitWindow(WIDTH * RESOLUTION, HEIGHT * RESOLUTION, "Chip8");
   SetTargetFPS(60);
 
-  while (!WindowShouldClose()) {
-    BeginDrawing();
+  Shader shader = LoadShader(0, "resources/screen.glsl");
+  RenderTexture2D target =
+      LoadRenderTexture(WIDTH * RESOLUTION, HEIGHT * RESOLUTION);
 
+  while (!WindowShouldClose()) {
     update_timers(c8);
     for (int i = 0; i < 10; i++) {
-      /* if (IsKeyPressed(KEY_SPACE) || IsKeyPressedRepeat(KEY_SPACE)) */
       update_c8(c8);
     }
 
+    BeginTextureMode(target);
+    BeginDrawing();
     draw_c8(c8);
+    EndDrawing();
+    EndTextureMode();
 
+    BeginDrawing();
+    ClearBackground(BLACK);
+    BeginShaderMode(shader);
+    DrawTextureRec(target.texture,
+                   (Rectangle){0, 0, (float)target.texture.width,
+                               (float)-target.texture.height},
+                   (Vector2){0, 0}, WHITE);
+    EndShaderMode();
+    draw_debug_c8(c8);
     EndDrawing();
   }
 
   free_c8(c8);
+
+  UnloadShader(shader);
+  CloseWindow();
 
   return 0;
 }
